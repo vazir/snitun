@@ -3,7 +3,7 @@ import asyncio
 from contextlib import suppress
 import ipaddress
 import logging
-from typing import Optional
+from typing import Optional, Callable, Any, Awaitable, Union
 
 import async_timeout
 
@@ -15,22 +15,31 @@ from ..exceptions import (
 from ..multiplexer.core import Multiplexer
 from .peer_manager import PeerManager
 from .sni import parse_tls_sni
+from enum import Enum
 
 _LOGGER = logging.getLogger(__name__)
 
 TCP_SESSION_TIMEOUT = 60
 
 
+class ClientEvent(str, Enum):
+    """Client event flags."""
+
+    CONNECTED = "connected"
+
+
 class SNIProxy:
     """SNI Proxy class."""
 
-    def __init__(self, peer_manager: PeerManager, host=None, port=None):
+    def __init__(self, peer_manager: PeerManager, host=None, port=None,
+                 event_callback: Optional[Callable[[Any, ClientEvent], Union[bool, Awaitable]]] = None):
         """Initialize SNI Proxy interface."""
         self._peer_manager = peer_manager
         self._loop = asyncio.get_event_loop()
         self._host = host
         self._port = port or 443
         self._server = None
+        self._event_callback = event_callback
 
     async def start(self):
         """Start Proxy server."""
@@ -121,6 +130,15 @@ class SNIProxy:
 
         # Open multiplexer channel
         try:
+            if self._event_callback:
+                result = self._event_callback(ip_address, ClientEvent.CONNECTED)
+                if isinstance(result, Awaitable):
+                    allow = await result
+                else:
+                    allow = result
+                if allow is False:
+                    _LOGGER.warning("Connection from %s is prohibited", ip_address)
+                    return
             channel = await multiplexer.create_channel(ip_address)
         except MultiplexerTransportError:
             _LOGGER.error("New transport channel to peer fails")

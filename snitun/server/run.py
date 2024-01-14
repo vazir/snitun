@@ -8,14 +8,14 @@ import os
 import select
 import signal
 import socket
-from typing import Awaitable, Iterable, List, Optional, Dict
+from typing import Awaitable, Iterable, List, Optional, Dict, Callable, Any
 from threading import Thread
 
 import async_timeout
 
 from .listener_peer import PeerListener
-from .listener_sni import SNIProxy
-from .peer_manager import PeerManager
+from .listener_sni import SNIProxy, ClientEvent
+from .peer_manager import PeerManager, PeerManagerEvent, Peer
 from .worker import ServerWorker
 from .sni import ParseSNIError, parse_tls_sni
 
@@ -82,12 +82,16 @@ class SniTunServerSingle:
         host: Optional[str] = None,
         port: Optional[int] = None,
         throttling: Optional[int] = None,
+        peer_event_callback: Optional[Callable[[Peer, PeerManagerEvent], None]] = None,
+        client_event_callback: Optional[Callable[[Any, ClientEvent], None]] = None,
+
     ):
         """Initialize SniTun Server."""
         self._loop: asyncio.BaseEventLoop = asyncio.get_event_loop()
         self._server: Optional[asyncio.AbstractServer] = None
-        self._peers: PeerManager = PeerManager(fernet_keys, throttling=throttling)
-        self._list_sni: SNIProxy = SNIProxy(self._peers)
+        self._peers: PeerManager = PeerManager(fernet_keys, throttling=throttling,
+                                               event_callback=peer_event_callback)
+        self._list_sni: SNIProxy = SNIProxy(self._peers, event_callback=client_event_callback)
         self._list_peer: PeerListener = PeerListener(self._peers)
         self._host: str = host or "0.0.0.0"
         self._port: int = port or 443
