@@ -161,6 +161,7 @@ class SniTunServerSingle:
             return
 
         # Check if HAPROXY/NGINX is used
+        proxy_params = None
         if data.startswith(b'PROXY'):
             data, proxy_params = self.parse_proxy(data)
             if not proxy_params:
@@ -171,11 +172,11 @@ class SniTunServerSingle:
         # Select the correct handler for process data
         if data[0] == 0x16:
             self._loop.create_task(
-                self._list_sni.handle_connection(reader, writer, data=data)
+                self._list_sni.handle_connection(reader, writer, data=data, proxy_params=proxy_params)
             )
         elif data.startswith(b"gA"):
             self._loop.create_task(
-                self._list_peer.handle_connection(reader, writer, data=data)
+                self._list_peer.handle_connection(reader, writer, data=data, proxy_params=proxy_params)
             )
         else:
             _LOGGER.warning("No valid ClientHello found: %s", data)

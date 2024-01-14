@@ -42,7 +42,7 @@ class PeerManager:
         """Return count of connected devices."""
         return len(self._peers)
 
-    def create_peer(self, fernet_data: bytes) -> Peer:
+    def create_peer(self, fernet_data: bytes, remote_params: dict = None) -> Peer:
         """Create a new peer from crypt config."""
         try:
             data = self._fernet.decrypt(fernet_data).decode("utf-8")
@@ -67,6 +67,7 @@ class PeerManager:
             aes_iv,
             throttling=self._throttling,
             alias=config.get("alias", []),
+            remote_params=remote_params
         )
 
     def add_peer(self, peer: Peer) -> None:

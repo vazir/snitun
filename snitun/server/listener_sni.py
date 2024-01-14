@@ -49,6 +49,7 @@ class SNIProxy:
         writer: asyncio.StreamWriter,
         data: Optional[bytes] = None,
         sni: Optional[str] = None,
+        proxy_params: Optional[dict] = None,
     ):
         """Internal handler for incoming requests."""
         if data is None:
@@ -89,7 +90,7 @@ class SNIProxy:
 
             # Proxy data over mutliplexer to client
             _LOGGER.debug("Processing for hostname %s started", hostname)
-            await self._proxy_peer(peer.multiplexer, client_hello, reader, writer)
+            await self._proxy_peer(peer.multiplexer, client_hello, reader, writer, proxy_params)
 
         finally:
             if not writer.transport.is_closing():
@@ -102,13 +103,20 @@ class SNIProxy:
         client_hello: bytes,
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
+        proxy_params: Optional[dict] = None,
     ):
         """Proxy data between end points."""
         transport = writer.transport
         try:
-            ip_address = ipaddress.ip_address(writer.get_extra_info("peername")[0])
-        except TypeError:
-            _LOGGER.error("Can't read source IP")
+            _LOGGER.debug('PROXY: %s, peerip: %s', proxy_params, writer.get_extra_info("peername")[0])
+            if proxy_params:
+                ip_address = ipaddress.ip_address(proxy_params['src_ip'])
+                _LOGGER.debug('Setting IP address to proxied: %s instead of %s', ip_address,
+                                                                           writer.get_extra_info("peername")[0])
+            else:
+                ip_address = ipaddress.ip_address(writer.get_extra_info("peername")[0])
+        except TypeError as e:
+            _LOGGER.error("Can't read source IP", exc_info=True)
             return
 
         # Open multiplexer channel

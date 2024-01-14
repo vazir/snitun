@@ -26,6 +26,7 @@ class Peer:
         aes_iv: bytes,
         throttling: Optional[int] = None,
         alias: Optional[List[str]] = None,
+        remote_params: Optional[dict] = None
     ):
         """Initialize a Peer."""
         self._hostname = hostname
@@ -34,11 +35,18 @@ class Peer:
         self._alias = alias or []
         self._multiplexer = None
         self._crypto = CryptoTransport(aes_key, aes_iv)
+        self.proxy_params = remote_params or None
+        self._remote_ip = None if not remote_params else remote_params['src_ip']
 
     @property
     def hostname(self) -> str:
         """Return his hostname."""
         return self._hostname
+
+    @property
+    def remote_ip(self) -> str:
+        """Return his hostname."""
+        return self._remote_ip
 
     @property
     def alias(self) -> List[str]:

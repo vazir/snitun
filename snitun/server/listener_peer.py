@@ -40,6 +40,7 @@ class PeerListener:
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
         data: Optional[bytes] = None,
+        proxy_params: Optional[dict] = None
     ):
         """Internal handler for incoming requests."""
         if not data:
@@ -60,7 +61,11 @@ class PeerListener:
             # Connection closed before data received
             if not fernet_data:
                 return
-            peer = self._peer_manager.create_peer(fernet_data)
+            _LOGGER.debug(f"Received %s", writer.get_extra_info('port'))
+            remote_params = {
+                'src_ip': proxy_params.get('src_ip') if proxy_params else writer.get_extra_info("peername")[0],
+            }
+            peer = self._peer_manager.create_peer(fernet_data, remote_params=remote_params)
 
             # Start multiplexer
             await peer.init_multiplexer_challenge(reader, writer)
